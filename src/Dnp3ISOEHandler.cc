@@ -28,7 +28,7 @@ void Dnp3ISOEHandler::Process(const HeaderInfo& info, const ICollection<Indexed<
     auto logItem = [this](const Indexed<Analog>& item) {
         for (int i=0 ; i<iec104MasterDnp3Master->pendingCommands.analogInput.size() ; i++){
             if(item.index == iec104MasterDnp3Master->pendingCommands.analogInput[i].dnp3Point){
-                iec104MasterDnp3Master->pendingCommands.analogInput[i].binaryValue = item.value.value;
+                iec104MasterDnp3Master->pendingCommands.analogInput[i].analogValue = item.value.value;
                 if (iec104MasterDnp3Master->pendingCommands.analogInput[i].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT){
                     iec104MasterDnp3Master->pendingCommands.pendingCommandCounter--;
                     iec104MasterDnp3Master->pendingCommands.analogInput[i].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;
@@ -48,7 +48,7 @@ void Dnp3ISOEHandler::Process(const HeaderInfo& info, const ICollection<Indexed<
     auto logItem = [this](const Indexed<Counter>& item) {
         for (int i=0 ; i<iec104MasterDnp3Master->pendingCommands.counter.size() ; i++){
             if(item.index == iec104MasterDnp3Master->pendingCommands.counter[i].dnp3Point){
-                iec104MasterDnp3Master->pendingCommands.counter[i].binaryValue = item.value.value;
+                iec104MasterDnp3Master->pendingCommands.counter[i].counterValue = item.value.value;
                 if (iec104MasterDnp3Master->pendingCommands.counter[i].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT){
                     iec104MasterDnp3Master->pendingCommands.pendingCommandCounter--;
                     iec104MasterDnp3Master->pendingCommands.counter[i].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;

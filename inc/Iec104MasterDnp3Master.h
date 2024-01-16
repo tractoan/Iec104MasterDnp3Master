@@ -87,6 +87,7 @@ private:
 
     static bool iec104ClockSyncHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, CP56Time2a newTime);
     static bool iec104InterrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, uint8_t qoi);
+    static bool iec104CounterInterrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, QualifierOfCIC qcc);
     static bool iec104AsduHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu);
     static bool iec104ConnectionRequestHandler(void* parameter, const char* ipAddress);
     static void iec104ConnectionEventHandler(void* parameter, IMasterConnection con, CS104_PeerConnectionEvent event);
