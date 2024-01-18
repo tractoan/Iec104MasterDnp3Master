@@ -17,6 +17,7 @@ AppConfiguration AppConfiguration::fromFile(const std::string &fileName) {
 
     appConfiguration.dnp3ClientAddress = fileConfiguration.property("dnp3ClientAddress", std::string(""));
     appConfiguration.dnp3ClientPort = fileConfiguration.property("dnp3ClientPort", 0U);
+    appConfiguration.dnp3MasterPort = fileConfiguration.property("dnp3MasterPort", 0U);
     appConfiguration.dnp3ClientSerialPort = fileConfiguration.property("dnp3ClientSerialPort", std::string(""));
     appConfiguration.dnp3ClientSerialPortBaudrate = fileConfiguration.property("dnp3ClientSerialPortBaudrate", 0U);
     std::string dnp3ConnectionType = toUpper(fileConfiguration.property("dnp3ConnectionType", std::string("")));
@@ -45,7 +46,7 @@ AppConfiguration AppConfiguration::fromFile(const std::string &fileName) {
         return appConfiguration;
     }
     for (int i=0 ; i<numMessage ; i++){
-        std::string messageId = std::string("message") + std::to_string(i);
+        std::string messageId = std::string("message") + std::to_string(i+1);
         MessageConfig config;
         config.iec104Asdu = fileConfiguration.property(messageId+std::string(".iec104Asdu"), 0U);
         std::string messageType = toUpper(fileConfiguration.property(messageId+std::string(".messageType"), std::string("")));

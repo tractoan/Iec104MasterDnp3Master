@@ -10,6 +10,7 @@ bool Iec104MasterDnp3Master::setConfigs(AppConfiguration configs){
     dnp3ResponseTimeoutSecond = configs.dnp3ResponseTimeoutSecond;
     dnp3ClientAddress = configs.dnp3ClientAddress;
     dnp3ClientPort = configs.dnp3ClientPort;
+    dnp3MasterPort = configs.dnp3MasterPort;
     dnp3ConnectionType = configs.dnp3ConnectionType;
     dnp3ClientSerialPort = configs.dnp3ClientSerialPort;
     dnp3ClientSerialPortBaudrate = configs.dnp3ClientSerialPortBaudrate;
@@ -311,138 +312,161 @@ bool Iec104MasterDnp3Master::iec104AsduHandler(void* parameter, IMasterConnectio
     CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
     if (CS101_ASDU_getTypeID(asdu) == C_SC_NA_1) {
         if  (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION) {
-            InformationObject io = CS101_ASDU_getElement(asdu, 0);
-            std::cout << "received single command object address " << InformationObject_getObjectAddress(io) << std::endl;
-            if (io) {
-                iec104MasterDnp3Master->pendingCommands.lock.try_lock();
-                iec104MasterDnp3Master->pendingCommands.binaryInput.clear();
-                iec104MasterDnp3Master->pendingCommands.binaryOutput.clear();
-                iec104MasterDnp3Master->pendingCommands.analogInput.clear();
-                iec104MasterDnp3Master->pendingCommands.analogOutput.clear();
-                iec104MasterDnp3Master->pendingCommands.counter.clear();
-                iec104MasterDnp3Master->pendingCommands.pendingCommandCounter = 0;
-                for (int i=0 ; i<iec104MasterDnp3Master->messageConfig.size() ; i++)
-                {
-                    if (iec104MasterDnp3Master->messageConfig[i].messageType == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageType::BINARY_OUTPUT){
-                        if (InformationObject_getObjectAddress(io) == iec104MasterDnp3Master->messageConfig[i].iec104Ioa){
-                            std::cout << "hahahaha" << std::endl;
-                            Iec104MasterDnp3MasterMessageConfig messageConfig = iec104MasterDnp3Master->messageConfig[i];
-                            SingleCommand sc = (SingleCommand) io;
-                            messageConfig.binaryValue = SingleCommand_getState(sc);
-                            messageConfig.state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT;
-                            iec104MasterDnp3Master->pendingCommands.binaryOutput.push_back(messageConfig);
-                            iec104MasterDnp3Master->pendingCommands.pendingCommandCounter++;
-                            iec104MasterDnp3Master->pendingCommands.done = false;
-                            iec104MasterDnp3Master->processingCommand();
-                            // auto endTime = std::chnoro::now() + std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond);
-                            std::unique_lock<std::mutex> uniqueLock(iec104MasterDnp3Master->pendingCommands.lock);
-                            if (iec104MasterDnp3Master->pendingCommands.sync.wait_for(uniqueLock, 
-                                                                        std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond), 
-                                                                        [&](){return iec104MasterDnp3Master->pendingCommands.done;})
-                                                                        == true){
-                                if (iec104MasterDnp3Master->pendingCommands.binaryOutput[0].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS){
-                                    CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);  
-                                } else {
-                                    CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);  
-                                    CS101_ASDU_setNegative(asdu, true);
-                                }                                        
-                                     
-                                IMasterConnection_sendASDU(connection, asdu);
-                                InformationObject_destroy(io);
-                                iec104MasterDnp3Master->pendingCommands.lock.unlock();
-                                return true; 
-                            }
-                            else {
-                                InformationObject_destroy(io);
-                                iec104MasterDnp3Master->pendingCommands.lock.unlock();
-                                return false;
+            for (int j=0 ; j<CS101_ASDU_getNumberOfElements(asdu) ; j++){
+                InformationObject io = CS101_ASDU_getElement(asdu, j);
+                // std::cout << "received single command object address " << InformationObject_getObjectAddress(io) << std::endl;
+                if (io) {
+                    iec104MasterDnp3Master->pendingCommands.lock.try_lock();
+                    iec104MasterDnp3Master->pendingCommands.binaryInput.clear();
+                    iec104MasterDnp3Master->pendingCommands.binaryOutput.clear();
+                    iec104MasterDnp3Master->pendingCommands.analogInput.clear();
+                    iec104MasterDnp3Master->pendingCommands.analogOutput.clear();
+                    iec104MasterDnp3Master->pendingCommands.counter.clear();
+                    iec104MasterDnp3Master->pendingCommands.pendingCommandCounter = 0;
+                    int i;
+                    for (i=0 ; i<iec104MasterDnp3Master->messageConfig.size() ; i++)
+                    {
+                        if (iec104MasterDnp3Master->messageConfig[i].messageType == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageType::BINARY_OUTPUT){
+                            if (InformationObject_getObjectAddress(io) == iec104MasterDnp3Master->messageConfig[i].iec104Ioa){
+                                Iec104MasterDnp3MasterMessageConfig messageConfig = iec104MasterDnp3Master->messageConfig[i];
+                                SingleCommand sc = (SingleCommand) io;
+                                messageConfig.binaryValue = SingleCommand_getState(sc);
+                                messageConfig.state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT;
+                                iec104MasterDnp3Master->pendingCommands.binaryOutput.push_back(messageConfig);
+                                iec104MasterDnp3Master->pendingCommands.pendingCommandCounter++;
+                                iec104MasterDnp3Master->pendingCommands.done = false;
+                                iec104MasterDnp3Master->processingCommand();
+                                // auto endTime = std::chnoro::now() + std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond);
+                                std::unique_lock<std::mutex> uniqueLock(iec104MasterDnp3Master->pendingCommands.lock);
+                                if (iec104MasterDnp3Master->pendingCommands.sync.wait_for(uniqueLock, 
+                                                                            std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond), 
+                                                                            [&](){return iec104MasterDnp3Master->pendingCommands.done;})
+                                                                            == true){
+                                    if (iec104MasterDnp3Master->pendingCommands.binaryOutput[0].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS){
+                                        CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, false);
+                                        CS101_ASDU_setCOT(tmpAsdu, CS101_COT_ACTIVATION_CON); 
+                                        CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                                        CS101_ASDU_addInformationObject(tmpAsdu, io);
+                                        IMasterConnection_sendASDU(connection, tmpAsdu);
+                                        CS101_ASDU_destroy(tmpAsdu);
+                                    } else {
+                                        CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
+                                        CS101_ASDU_setCOT(tmpAsdu, CS101_COT_ACTIVATION_CON); 
+                                        CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                                        CS101_ASDU_addInformationObject(tmpAsdu, io);
+                                        IMasterConnection_sendASDU(connection, tmpAsdu);
+                                        CS101_ASDU_destroy(tmpAsdu);
+                                    }                                        
+                                    iec104MasterDnp3Master->pendingCommands.lock.unlock();
+                                }
+                                else {
+                                    CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
+                                    CS101_ASDU_setCOT(tmpAsdu, CS101_COT_ACTIVATION_CON);
+                                    CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                                    CS101_ASDU_addInformationObject(tmpAsdu, io);
+                                    IMasterConnection_sendASDU(connection, tmpAsdu);
+                                    CS101_ASDU_destroy(tmpAsdu);  
+                                }
+                                break;
                             }
                         }
                     }
+                    iec104MasterDnp3Master->pendingCommands.lock.unlock();
+                    InformationObject_destroy(io);
+                    if (i==iec104MasterDnp3Master->messageConfig.size()){
+                        CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
+                        CS101_ASDU_setCOT(tmpAsdu, CS101_COT_UNKNOWN_IOA);
+                        CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                        CS101_ASDU_addInformationObject(tmpAsdu, io);
+                        IMasterConnection_sendASDU(connection, tmpAsdu);
+                        CS101_ASDU_destroy(tmpAsdu); 
+                    }
                 }
-                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
-
-                IMasterConnection_sendASDU(connection, asdu);
-                InformationObject_destroy(io);
-                iec104MasterDnp3Master->pendingCommands.lock.unlock();
-                return false;
             }
-            else {
-                std::cout << "ERROR: message has no valid information object\n";
-                return false;
-            }
+            IMasterConnection_sendACT_TERM(connection, asdu);
         }
         else {
-            CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);
-            IMasterConnection_sendASDU(connection, asdu);
+            IMasterConnection_sendACT_TERM(connection, asdu);
         }
-        return false;
     }
     else if (CS101_ASDU_getTypeID(asdu) == C_SE_NB_1) {
-        printf("received single command\n");
         if  (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION) {
-            InformationObject io = CS101_ASDU_getElement(asdu, 0);
-            if (io) {
-                iec104MasterDnp3Master->pendingCommands.lock.try_lock();
-                iec104MasterDnp3Master->pendingCommands.binaryInput.clear();
-                iec104MasterDnp3Master->pendingCommands.binaryOutput.clear();
-                iec104MasterDnp3Master->pendingCommands.analogInput.clear();
-                iec104MasterDnp3Master->pendingCommands.analogOutput.clear();
-                iec104MasterDnp3Master->pendingCommands.counter.clear();
-                iec104MasterDnp3Master->pendingCommands.pendingCommandCounter = 0;
-                for (int i=0 ; i<iec104MasterDnp3Master->messageConfig.size() ; i++)
-                {
-                    if (iec104MasterDnp3Master->messageConfig[i].messageType == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageType::ANALOG_OUTPUT){
-                        if (InformationObject_getObjectAddress(io) == iec104MasterDnp3Master->messageConfig[i].iec104Ioa){
-                            Iec104MasterDnp3MasterMessageConfig messageConfig = iec104MasterDnp3Master->messageConfig[i];
-                            SetpointCommandScaled sc = (SetpointCommandScaled) io;
-                            messageConfig.analogValue = SetpointCommandScaled_getValue(sc);
-                            messageConfig.state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT;
-                            iec104MasterDnp3Master->pendingCommands.analogOutput.push_back(messageConfig);
-                            iec104MasterDnp3Master->pendingCommands.pendingCommandCounter++;
-                            iec104MasterDnp3Master->pendingCommands.done = false;
-                            iec104MasterDnp3Master->processingCommand();
-                            // auto endTime = std::chnoro::now() + std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond);
-                            std::unique_lock<std::mutex> uniqueLock(iec104MasterDnp3Master->pendingCommands.lock);
-                            if (iec104MasterDnp3Master->pendingCommands.sync.wait_for(uniqueLock, 
-                                                                        std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond), 
-                                                                        [&](){return iec104MasterDnp3Master->pendingCommands.done;})
-                                                                        == true){
-                                 if (iec104MasterDnp3Master->pendingCommands.analogOutput[0].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS){
-                                    CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);  
-                                } else {
-                                    CS101_ASDU_setCOT(asdu, CS101_COT_ACTIVATION_CON);  
-                                    CS101_ASDU_setNegative(asdu, true);
-                                }   
-                                IMasterConnection_sendASDU(connection, asdu);
-                                InformationObject_destroy(io);
-                                iec104MasterDnp3Master->pendingCommands.lock.unlock();
-                                return true; 
-                            }
-                            else {
-                                InformationObject_destroy(io);
-                                iec104MasterDnp3Master->pendingCommands.lock.unlock();
-                                return false;
+            for (int j=0 ; j<CS101_ASDU_getNumberOfElements(asdu) ; j++){
+                InformationObject io = CS101_ASDU_getElement(asdu, j);
+                // std::cout << "received single command object address " << InformationObject_getObjectAddress(io) << std::endl;
+                if (io) {
+                    iec104MasterDnp3Master->pendingCommands.lock.try_lock();
+                    iec104MasterDnp3Master->pendingCommands.binaryInput.clear();
+                    iec104MasterDnp3Master->pendingCommands.binaryOutput.clear();
+                    iec104MasterDnp3Master->pendingCommands.analogInput.clear();
+                    iec104MasterDnp3Master->pendingCommands.analogOutput.clear();
+                    iec104MasterDnp3Master->pendingCommands.counter.clear();
+                    iec104MasterDnp3Master->pendingCommands.pendingCommandCounter = 0;
+                    int i;
+                    for (i=0 ; i<iec104MasterDnp3Master->messageConfig.size() ; i++)
+                    {
+                        if (iec104MasterDnp3Master->messageConfig[i].messageType == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageType::ANALOG_OUTPUT){
+                            if (InformationObject_getObjectAddress(io) == iec104MasterDnp3Master->messageConfig[i].iec104Ioa){
+                                Iec104MasterDnp3MasterMessageConfig messageConfig = iec104MasterDnp3Master->messageConfig[i];
+                                SetpointCommandScaled sc = (SetpointCommandScaled) io;
+                                messageConfig.analogValue = SetpointCommandScaled_getValue(sc);
+                                messageConfig.state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT;
+                                iec104MasterDnp3Master->pendingCommands.analogOutput.push_back(messageConfig);
+                                iec104MasterDnp3Master->pendingCommands.pendingCommandCounter++;
+                                iec104MasterDnp3Master->pendingCommands.done = false;
+                                iec104MasterDnp3Master->processingCommand();
+                                // auto endTime = std::chnoro::now() + std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond);
+                                std::unique_lock<std::mutex> uniqueLock(iec104MasterDnp3Master->pendingCommands.lock);
+                                if (iec104MasterDnp3Master->pendingCommands.sync.wait_for(uniqueLock, 
+                                                                            std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond), 
+                                                                            [&](){return iec104MasterDnp3Master->pendingCommands.done;})
+                                                                            == true){
+                                    if (iec104MasterDnp3Master->pendingCommands.analogOutput[0].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS){
+                                        CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, false);
+                                        CS101_ASDU_setCOT(tmpAsdu, CS101_COT_ACTIVATION_CON); 
+                                        CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                                        CS101_ASDU_addInformationObject(tmpAsdu, io);
+                                        IMasterConnection_sendASDU(connection, tmpAsdu);
+                                        CS101_ASDU_destroy(tmpAsdu);
+                                    } else {
+                                        CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
+                                        CS101_ASDU_setCOT(tmpAsdu, CS101_COT_ACTIVATION_CON); 
+                                        CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                                        CS101_ASDU_addInformationObject(tmpAsdu, io);
+                                        IMasterConnection_sendASDU(connection, tmpAsdu);
+                                        CS101_ASDU_destroy(tmpAsdu);
+                                    }                                        
+                                    iec104MasterDnp3Master->pendingCommands.lock.unlock();
+                                }
+                                else {
+                                    CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
+                                    CS101_ASDU_setCOT(tmpAsdu, CS101_COT_ACTIVATION_CON);
+                                    CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                                    CS101_ASDU_addInformationObject(tmpAsdu, io);
+                                    IMasterConnection_sendASDU(connection, tmpAsdu);
+                                    CS101_ASDU_destroy(tmpAsdu);  
+                                }
+                                break;
                             }
                         }
                     }
+                    iec104MasterDnp3Master->pendingCommands.lock.unlock();
+                    InformationObject_destroy(io);
+                    if (i==iec104MasterDnp3Master->messageConfig.size()){
+                        CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
+                        CS101_ASDU_setCOT(tmpAsdu, CS101_COT_UNKNOWN_IOA);
+                        CS101_ASDU_setTypeID(tmpAsdu, CS101_ASDU_getTypeID(asdu)); 
+                        CS101_ASDU_addInformationObject(tmpAsdu, io);
+                        IMasterConnection_sendASDU(connection, tmpAsdu);
+                        CS101_ASDU_destroy(tmpAsdu); 
+                    }
                 }
-                CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_IOA);
-                IMasterConnection_sendASDU(connection, asdu);
-                InformationObject_destroy(io);
-                iec104MasterDnp3Master->pendingCommands.lock.unlock();
-                return false;
             }
-            else {
-                printf("ERROR: message has no valid information object\n");
-                return false;
-            }
+            IMasterConnection_sendACT_TERM(connection, asdu);
         }
         else {
-            CS101_ASDU_setCOT(asdu, CS101_COT_UNKNOWN_COT);
-            IMasterConnection_sendASDU(connection, asdu);
+            IMasterConnection_sendACT_TERM(connection, asdu);
         }
-        return false;
     }
     else if (CS101_ASDU_getTypeID(asdu) == M_SP_NA_1) {
         // printf("received single monitor\n");
@@ -651,7 +675,7 @@ bool Iec104MasterDnp3Master::iec104AsduHandler(void* parameter, IMasterConnectio
             IMasterConnection_sendACT_TERM(connection, asdu);
         }
     }
-    return false;
+    return true;
 }
 bool Iec104MasterDnp3Master::iec104ConnectionRequestHandler(void* parameter, const char* ipAddress){
     return true;
@@ -692,11 +716,11 @@ bool Iec104MasterDnp3Master::processingCommand(){
             auto checkErr = [&](const CommandPointResult& res)
             {
                 if (res.status == CommandStatus::SUCCESS){
-                    std::cout << "binary output success" << std::endl;
-                    pendingCommands.binaryOutput[i].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;
+                    // std::cout << "binary output success" << std::endl;
+                    pendingCommands.binaryOutput[0].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;
                 } else {
-                    std::cout << "binary output failed" << std::endl;
-                    pendingCommands.binaryOutput[i].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_FAILED;
+                    // std::cout << "binary output failed" << std::endl;
+                    pendingCommands.binaryOutput[0].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_FAILED;
                 }
             };
             result.ForeachItem(checkErr);
@@ -721,11 +745,11 @@ bool Iec104MasterDnp3Master::processingCommand(){
             auto checkErr = [&](const CommandPointResult& res)
             {
                 if (res.status == CommandStatus::SUCCESS){
-                    std::cout << "binary output success" << std::endl;
-                    pendingCommands.analogOutput[i].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;
+                    // std::cout << "binary output success" << std::endl;
+                    pendingCommands.analogOutput[0].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;
                 } else {
-                    std::cout << "binary output failed" << std::endl;
-                    pendingCommands.analogOutput[i].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_FAILED;
+                    // std::cout << "binary output failed" << std::endl;
+                    pendingCommands.analogOutput[0].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_FAILED;
                 }
             };
             result.ForeachItem(checkErr);

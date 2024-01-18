@@ -67,6 +67,7 @@ private:
     int dnp3ResponseTimeoutSecond;
     std::string dnp3ClientAddress;
     int dnp3ClientPort;
+    int dnp3MasterPort;
     DNP3ConnectionType dnp3ConnectionType;
     std::string dnp3ClientSerialPort;
     int dnp3ClientSerialPortBaudrate;
