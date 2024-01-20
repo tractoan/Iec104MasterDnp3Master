@@ -207,7 +207,7 @@ bool Iec104MasterDnp3Master::iec104InterrogationHandler(void* parameter, IMaster
                     for (int i=0 ; i<iec104MasterDnp3Master->pendingCommands.binaryInput.size() ; i++) {
                         int commonAddress = iec104MasterDnp3Master->pendingCommands.binaryInput[0].iec104Asdu;
                         CS101_ASDU newAsdu = CS101_ASDU_create(alParams, false, CS101_COT_INTERROGATED_BY_STATION,
-                                                0, iec104MasterDnp3Master->pendingCommands.binaryInput[0].iec104Asdu, false, false);
+                                                0, iec104MasterDnp3Master->pendingCommands.binaryInput[i].iec104Asdu, false, false);
                         InformationObject io = (InformationObject) SinglePointInformation_create(NULL, 
                                                                 iec104MasterDnp3Master->pendingCommands.binaryInput[i].iec104Ioa,
                                                                 iec104MasterDnp3Master->pendingCommands.binaryInput[i].binaryValue,
@@ -257,7 +257,7 @@ bool Iec104MasterDnp3Master::iec104InterrogationHandler(void* parameter, IMaster
                     for (int i=0 ; i<iec104MasterDnp3Master->pendingCommands.analogInput.size() ; i++) {
                         int commonAddress = iec104MasterDnp3Master->pendingCommands.analogInput[0].iec104Asdu;
                         CS101_ASDU newAsdu = CS101_ASDU_create(alParams, false, CS101_COT_INTERROGATED_BY_STATION,
-                                                0, iec104MasterDnp3Master->pendingCommands.analogInput[0].iec104Asdu, false, false);
+                                                0, iec104MasterDnp3Master->pendingCommands.analogInput[i].iec104Asdu, false, false);
                         InformationObject io = (InformationObject) SinglePointInformation_create(NULL, 
                                                                 iec104MasterDnp3Master->pendingCommands.analogInput[i].iec104Ioa,
                                                                 iec104MasterDnp3Master->pendingCommands.analogInput[i].analogValue,
@@ -350,7 +350,7 @@ bool Iec104MasterDnp3Master::iec104CounterInterrogationHandler(void* parameter, 
                     for (int i=0 ; i<iec104MasterDnp3Master->pendingCommands.counter.size() ; i++) {
                         int commonAddress = iec104MasterDnp3Master->pendingCommands.counter[0].iec104Asdu;
                         CS101_ASDU newAsdu = CS101_ASDU_create(alParams, false, CS101_COT_INTERROGATED_BY_STATION,
-                                                0, iec104MasterDnp3Master->pendingCommands.counter[0].iec104Asdu, false, false);
+                                                0, iec104MasterDnp3Master->pendingCommands.counter[i].iec104Asdu, false, false);
                         InformationObject io = (InformationObject) SinglePointInformation_create(NULL, 
                                                                 iec104MasterDnp3Master->pendingCommands.counter[i].iec104Ioa,
                                                                 iec104MasterDnp3Master->pendingCommands.counter[i].binaryValue,
