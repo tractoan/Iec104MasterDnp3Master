@@ -53,8 +53,12 @@ class Iec104MasterDnp3Master
 public:
     Iec104MasterDnp3Master() = default;
     ~Iec104MasterDnp3Master() {
-        delete dnp3Manager;
-        CS104_Slave_destroy(iec104Slave);
+        if (dnp3Manager != nullptr){
+            delete dnp3Manager;
+        }
+        if (iec104Slave != nullptr){
+            CS104_Slave_destroy(iec104Slave);
+        }
     };
     bool setConfigs(AppConfiguration configs);
     bool init();
@@ -72,13 +76,13 @@ private:
     std::string dnp3ClientSerialPort;
     int dnp3ClientSerialPortBaudrate;
 
-    DNP3Manager *dnp3Manager;
+    DNP3Manager *dnp3Manager = nullptr;
     std::shared_ptr<IChannel> dnp3Channel;
     std::shared_ptr<ISOEHandler> dnp3IsoeHandler;
     MasterStackConfig dnp3MasterStackConfig;
     std::shared_ptr<IMaster> dnp3Master;
 
-    CS104_Slave iec104Slave;
+    CS104_Slave iec104Slave = nullptr;
     const int iec104MaxLowPrioQueueSize = 10;
     const int iec104MaxHighPrioQueueSize = 10;
     const std::string iec104LocalAddress = std::string("0.0.0.0");

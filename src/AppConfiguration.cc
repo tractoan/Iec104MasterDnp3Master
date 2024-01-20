@@ -72,7 +72,20 @@ AppConfiguration AppConfiguration::fromFile(const std::string &fileName) {
         }
         config.dnp3Point = fileConfiguration.property(messageId+std::string(".dnp3Point"), static_cast<int>(0));
         config.iec104Ioa = fileConfiguration.property(messageId+std::string(".iec104Ioa"), static_cast<int>(0));
+        for (int j=0 ; j<appConfiguration.configData.size() ; j++){
+            if ((appConfiguration.configData[j].messageType == config.messageType) 
+            && (appConfiguration.configData[j].iec104Asdu == config.iec104Asdu) 
+            && (appConfiguration.configData[j].iec104Ioa == config.iec104Ioa)){
+                std::cout << std::string("Error in config ") << messageId << " same as message" << j << std::endl;
+                appConfiguration.configValid = false;
+                return appConfiguration;
+            }
+        }
         appConfiguration.configData.push_back(config);
     }
     return appConfiguration;
+}
+
+bool AppConfiguration::getConfigValid(){
+    return configValid;
 }

@@ -29,4 +29,5 @@ public:
     int dnp3ClientSerialPortBaudrate;
     std::vector<MessageConfig> configData;
     static AppConfiguration fromFile(const std::string &fileName);
+    bool getConfigValid();
 };
