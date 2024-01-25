@@ -1,9 +1,9 @@
-;dnp3ClientAddress=192.168.2.220
-;dnp3ClientPort=65000
-;dnp3ConnectionType=TCP
-dnp3ConnectionType=Serial
-dnp3ClientSerialPort=/dev/ttyUSB0
-dnp3ClientSerialPortBaudrate=115200
+dnp3ClientAddress=192.168.2.220
+dnp3ClientPort=65000
+dnp3ConnectionType=TCP
+;dnp3ConnectionType=Serial
+;dnp3ClientSerialPort=/dev/ttyUSB0
+;dnp3ClientSerialPortBaudrate=115200
 
 dnp3Destination=10
 dnp3Source=1

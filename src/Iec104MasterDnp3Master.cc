@@ -89,6 +89,7 @@ bool Iec104MasterDnp3Master::init(){
     } 
     dnp3MasterStackConfig.master.responseTimeout = TimeDuration::Seconds(dnp3ResponseTimeoutSecond);
     dnp3MasterStackConfig.master.disableUnsolOnStartup = false;
+    dnp3MasterStackConfig.master.timeSyncMode = TimeSyncMode::NonLAN;
     dnp3MasterStackConfig.link.LocalAddr = dnp3Source;
     dnp3MasterStackConfig.link.RemoteAddr = dnp3Destination;
     dnp3Master = dnp3Channel->AddMaster("master", PrintingSOEHandler::Create(), DefaultMasterApplication::Create(), dnp3MasterStackConfig);
@@ -114,18 +115,48 @@ bool Iec104MasterDnp3Master::start(){
 }
 
 bool Iec104MasterDnp3Master::iec104ClockSyncHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, CP56Time2a newTime){
-    Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
     std::cout << "Process time sync command with time " << CP56Time2a_getHour(newTime)
                                                         << CP56Time2a_getMinute(newTime)
                                                         << CP56Time2a_getSecond(newTime)
                                                         << CP56Time2a_getDayOfMonth(newTime)
                                                         << CP56Time2a_getMonth(newTime)
                                                         << CP56Time2a_getYear(newTime) + 2000 << std::endl;
-
+    Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    bool isSuccess = true;
+    CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
+    iec104MasterDnp3Master->pendingCommands.lock.try_lock();
+    iec104MasterDnp3Master->pendingCommands.binaryInput.clear();
+    iec104MasterDnp3Master->pendingCommands.binaryOutput.clear();
+    iec104MasterDnp3Master->pendingCommands.analogInput.clear();
+    iec104MasterDnp3Master->pendingCommands.analogOutput.clear();
+    iec104MasterDnp3Master->pendingCommands.counter.clear();
+    iec104MasterDnp3Master->pendingCommands.pendingCommandCounter = 0;
+    Iec104MasterDnp3MasterMessageConfig messageConfig;
+    messageConfig.messageType = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageType::TIMESYNC;
+    messageConfig.timeMs = CP56Time2a_toMsTimestamp(newTime);
+    messageConfig.state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::WAIT_CLIENT;
+    iec104MasterDnp3Master->pendingCommands.timeSync.push_back(messageConfig);
+    iec104MasterDnp3Master->pendingCommands.pendingCommandCounter++;
+    iec104MasterDnp3Master->pendingCommands.done = false;
+    iec104MasterDnp3Master->processingCommand();
+    // auto endTime = std::chnoro::now() + std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond);
+    std::unique_lock<std::mutex> uniqueLock(iec104MasterDnp3Master->pendingCommands.lock);
+    if (iec104MasterDnp3Master->pendingCommands.sync.wait_for(uniqueLock, 
+                                                std::chrono::seconds(iec104MasterDnp3Master->dnp3ResponseTimeoutSecond), 
+                                                [&](){return iec104MasterDnp3Master->pendingCommands.done;})
+                                                == true){
+        if (iec104MasterDnp3Master->pendingCommands.timeSync[0].state == Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS){
+            CP56Time2a_setFromMsTimestamp(newTime, iec104MasterDnp3Master->pendingCommands.timeSync[0].timeMs);
+            isSuccess = true;
+        } else {
+            isSuccess = false;
+        }                                        
+    }
+    else {
+        isSuccess = false;
+    }
+    iec104MasterDnp3Master->pendingCommands.lock.unlock();
     uint64_t newSystemTimeInMs = CP56Time2a_toMsTimestamp(newTime);
-
-    /* Set time for ACT_CON message */
-    CP56Time2a_setFromMsTimestamp(newTime, Hal_getTimeInMs());
 
     /* update system time here */
     return true;
@@ -426,7 +457,6 @@ bool Iec104MasterDnp3Master::iec104AsduHandler(void* parameter, IMasterConnectio
                                         IMasterConnection_sendASDU(connection, tmpAsdu);
                                         CS101_ASDU_destroy(tmpAsdu);
                                     }                                        
-                                    iec104MasterDnp3Master->pendingCommands.lock.unlock();
                                 }
                                 else {
                                     CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
@@ -505,7 +535,6 @@ bool Iec104MasterDnp3Master::iec104AsduHandler(void* parameter, IMasterConnectio
                                         IMasterConnection_sendASDU(connection, tmpAsdu);
                                         CS101_ASDU_destroy(tmpAsdu);
                                     }                                        
-                                    iec104MasterDnp3Master->pendingCommands.lock.unlock();
                                 }
                                 else {
                                     CS101_ASDU tmpAsdu = CS101_ASDU_create(alParams, false, CS101_COT_ACTIVATION_CON, InformationObject_getObjectAddress(io), CS101_ASDU_getCA(asdu), false, true);
@@ -831,6 +860,28 @@ bool Iec104MasterDnp3Master::processingCommand(){
             pendingCommands.lock.unlock();
         };
         dnp3Master->SelectAndOperate(analogOutput, pendingCommands.analogOutput[i].dnp3Point, callback);
+    }
+
+    for (int i=0 ; i<pendingCommands.timeSync.size() ; i++){
+        auto callback = [&](const TaskCompletion& result) -> void
+        {			
+            pendingCommands.lock.try_lock();	
+            if (result == TaskCompletion::SUCCESS){
+                // std::cout << "binary output success" << std::endl;
+                pendingCommands.timeSync[0].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_SUCCESS;
+            } else {
+                // std::cout << "binary output failed" << std::endl;
+                pendingCommands.timeSync[0].state = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageState::RESPONSE_FAILED;
+            }
+
+            pendingCommands.pendingCommandCounter--;
+            if (pendingCommands.pendingCommandCounter == 0){
+                pendingCommands.done = true;
+                pendingCommands.sync.notify_all();
+            }
+            pendingCommands.lock.unlock();
+        };
+        dnp3Master->TimeSync(pendingCommands.timeSync[0].timeMs, callback);
     }
     // pendingCommands.lock.unlock();
     return true;

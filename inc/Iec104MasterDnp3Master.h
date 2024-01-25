@@ -22,7 +22,7 @@ using namespace std::chrono_literals;
 
 class Iec104MasterDnp3MasterMessageConfig {
 public:
-    enum Iec104MasterDnp3MasterMessageType {BINARY_INPUT, BINARY_OUTPUT, ANALOG_INPUT, ANALOG_OUTPUT, COUNTER};
+    enum Iec104MasterDnp3MasterMessageType {BINARY_INPUT, BINARY_OUTPUT, ANALOG_INPUT, ANALOG_OUTPUT, COUNTER, TIMESYNC};
     enum Iec104MasterDnp3MasterMessageState {WAIT_CLIENT, RESPONSE_SUCCESS, RESPONSE_FAILED};
     Iec104MasterDnp3MasterMessageType messageType;
     Iec104MasterDnp3MasterMessageState state = WAIT_CLIENT;
@@ -33,6 +33,7 @@ public:
     bool binaryValue;
     int analogValue;
     int counterValue;
+    uint64_t timeMs;
 };
 
 class Iec104MasterDnp3MasterPendingCommand {
@@ -43,6 +44,7 @@ public:
     std::vector<Iec104MasterDnp3MasterMessageConfig> analogInput;
     std::vector<Iec104MasterDnp3MasterMessageConfig> analogOutput;
     std::vector<Iec104MasterDnp3MasterMessageConfig> counter;
+    std::vector<Iec104MasterDnp3MasterMessageConfig> timeSync;
     bool done;
     int pendingCommandCounter;
     std::condition_variable sync;
