@@ -157,10 +157,9 @@ bool Iec104MasterDnp3Master::iec104ClockSyncHandler(void* parameter, IMasterConn
         isSuccess = false;
     }
     iec104MasterDnp3Master->pendingCommands.lock.unlock();
-    uint64_t newSystemTimeInMs = CP56Time2a_toMsTimestamp(newTime);
 
     /* update system time here */
-    return true;
+    return isSuccess;
 }
 
 bool Iec104MasterDnp3Master::iec104InterrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, uint8_t qoi){
