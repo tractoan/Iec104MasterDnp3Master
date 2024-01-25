@@ -89,7 +89,7 @@ bool Iec104MasterDnp3Master::init(){
     } 
     dnp3MasterStackConfig.master.responseTimeout = TimeDuration::Seconds(dnp3ResponseTimeoutSecond);
     dnp3MasterStackConfig.master.disableUnsolOnStartup = false;
-    dnp3MasterStackConfig.master.timeSyncMode = TimeSyncMode::NonLAN;
+    // dnp3MasterStackConfig.master.timeSyncMode = TimeSyncMode::NonLAN;
     dnp3MasterStackConfig.link.LocalAddr = dnp3Source;
     dnp3MasterStackConfig.link.RemoteAddr = dnp3Destination;
     dnp3Master = dnp3Channel->AddMaster("master", PrintingSOEHandler::Create(), DefaultMasterApplication::Create(), dnp3MasterStackConfig);
@@ -130,6 +130,7 @@ bool Iec104MasterDnp3Master::iec104ClockSyncHandler(void* parameter, IMasterConn
     iec104MasterDnp3Master->pendingCommands.analogInput.clear();
     iec104MasterDnp3Master->pendingCommands.analogOutput.clear();
     iec104MasterDnp3Master->pendingCommands.counter.clear();
+    iec104MasterDnp3Master->pendingCommands.timeSync.clear();
     iec104MasterDnp3Master->pendingCommands.pendingCommandCounter = 0;
     Iec104MasterDnp3MasterMessageConfig messageConfig;
     messageConfig.messageType = Iec104MasterDnp3MasterMessageConfig::Iec104MasterDnp3MasterMessageType::TIMESYNC;
@@ -864,7 +865,8 @@ bool Iec104MasterDnp3Master::processingCommand(){
 
     for (int i=0 ; i<pendingCommands.timeSync.size() ; i++){
         auto callback = [&](const TaskCompletion& result) -> void
-        {			
+        {		
+            std::cout << "confirm" << std::endl;	
             pendingCommands.lock.try_lock();	
             if (result == TaskCompletion::SUCCESS){
                 // std::cout << "binary output success" << std::endl;
