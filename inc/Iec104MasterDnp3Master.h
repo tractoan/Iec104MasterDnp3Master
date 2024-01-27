@@ -2,6 +2,7 @@
 #define IEC104MASTERDNP3MASTER_H
 
 #include <iostream>
+#include <mutex>
 #include <condition_variable>
 #include <opendnp3/ConsoleLogger.h>
 #include <opendnp3/DNP3Manager.h>
@@ -91,6 +92,7 @@ private:
     const CS104_ServerMode iec104ServerMode = CS104_MODE_SINGLE_REDUNDANCY_GROUP;
     CS101_AppLayerParameters iec104AppLayerParameters;
     CS104_APCIParameters iec104AcpiParameters;
+    std::mutex receiveLock;
 
     static bool iec104ClockSyncHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, CP56Time2a newTime);
     static bool iec104InterrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, uint8_t qoi);

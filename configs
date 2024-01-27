@@ -4,7 +4,7 @@
 dnp3ConnectionType=Serial
 dnp3ClientSerialPort=/dev/ttyUSB0
 dnp3ClientSerialPortBaudrate=115200
-commonAsdu=100
+commonAsdu=1000
 incrementIOA=true
 
 dnp3Destination=10
@@ -12,15 +12,15 @@ dnp3Source=1
 dnp3ResponseTimeoutSecond=2
 numMessage=244
 
-;message1.iec104Asdu=3
+message1.iec104Asdu=3
 message1.messageType=binary_input
 message1.dnp3Point=0
-;message1.iec104Ioa=0
+message1.iec104Ioa=0
 
-;message2.iec104Asdu=3
+message2.iec104Asdu=3
 message2.messageType=binary_input
 message2.dnp3Point=1
-;message2.iec104Ioa=1
+message2.iec104Ioa=1
 
 message3.iec104Asdu=3
 message3.messageType=binary_input

@@ -1,5 +1,6 @@
 #include "Iec104MasterDnp3Master.h"
 #include "Dnp3ISOEHandler.h"
+#include <thread>
 extern "C" {
     #include "hal_time.h"
 }
@@ -107,11 +108,13 @@ bool Iec104MasterDnp3Master::init(){
     CS104_Slave_setASDUHandler(iec104Slave, iec104AsduHandler, this);
     CS104_Slave_setConnectionRequestHandler(iec104Slave, iec104ConnectionRequestHandler, this);
     CS104_Slave_setConnectionEventHandler(iec104Slave, iec104ConnectionEventHandler, this);
+    return true;
 }
 
 bool Iec104MasterDnp3Master::start(){
     dnp3Master->Enable();
     CS104_Slave_start(iec104Slave);
+    return true;
 }
 
 bool Iec104MasterDnp3Master::iec104ClockSyncHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, CP56Time2a newTime){
@@ -122,6 +125,7 @@ bool Iec104MasterDnp3Master::iec104ClockSyncHandler(void* parameter, IMasterConn
                                                         << CP56Time2a_getMonth(newTime)
                                                         << CP56Time2a_getYear(newTime) + 2000 << std::endl;
     Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    std::lock_guard<std::mutex> lock(iec104MasterDnp3Master->receiveLock);
     bool isSuccess = true;
     CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
     iec104MasterDnp3Master->pendingCommands.lock.try_lock();
@@ -164,6 +168,7 @@ bool Iec104MasterDnp3Master::iec104ClockSyncHandler(void* parameter, IMasterConn
 
 bool Iec104MasterDnp3Master::iec104InterrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, uint8_t qoi){
     Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    std::lock_guard<std::mutex> lock(iec104MasterDnp3Master->receiveLock);
     if (qoi == 20) { /* only handle station interrogation */
         CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
         iec104MasterDnp3Master->pendingCommands.lock.try_lock();
@@ -316,6 +321,7 @@ bool Iec104MasterDnp3Master::iec104InterrogationHandler(void* parameter, IMaster
 
 bool Iec104MasterDnp3Master::iec104CounterInterrogationHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu, QualifierOfCIC qcc){
     Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    std::lock_guard<std::mutex> lock(iec104MasterDnp3Master->receiveLock);
     /*if (qcc == 20) */{ /* only handle station interrogation */
         CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
         iec104MasterDnp3Master->pendingCommands.lock.try_lock();
@@ -409,6 +415,7 @@ bool Iec104MasterDnp3Master::iec104CounterInterrogationHandler(void* parameter, 
 
 bool Iec104MasterDnp3Master::iec104AsduHandler(void* parameter, IMasterConnection connection, CS101_ASDU asdu){
     Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    std::lock_guard<std::mutex> lock(iec104MasterDnp3Master->receiveLock);
     CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(connection);
     if (CS101_ASDU_getTypeID(asdu) == C_SC_NA_1) {
         if  (CS101_ASDU_getCOT(asdu) == CS101_COT_ACTIVATION) {
@@ -776,10 +783,13 @@ bool Iec104MasterDnp3Master::iec104AsduHandler(void* parameter, IMasterConnectio
     return true;
 }
 bool Iec104MasterDnp3Master::iec104ConnectionRequestHandler(void* parameter, const char* ipAddress){
+    Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    std::lock_guard<std::mutex> lock(iec104MasterDnp3Master->receiveLock);
     return true;
 }
 void Iec104MasterDnp3Master::iec104ConnectionEventHandler(void* parameter, IMasterConnection con, CS104_PeerConnectionEvent event){
     Iec104MasterDnp3Master *iec104MasterDnp3Master = static_cast<Iec104MasterDnp3Master*>(parameter);
+    std::lock_guard<std::mutex> lock(iec104MasterDnp3Master->receiveLock);
     CS101_AppLayerParameters alParams = IMasterConnection_getApplicationLayerParameters(con);
     if (event == CS104_CON_EVENT_CONNECTION_OPENED) {
         std::cout << ("Connection opened (%p)\n", con) << std::endl;

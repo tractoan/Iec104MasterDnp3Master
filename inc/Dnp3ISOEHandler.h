@@ -35,5 +35,6 @@ class Dnp3ISOEHandler : public ISOEHandler
 public:
     bool setIec104MasterDnp3Master(Iec104MasterDnp3Master *iec104MasterDnp3Master){
         this->iec104MasterDnp3Master = iec104MasterDnp3Master;
+        return true;
     }
 };
