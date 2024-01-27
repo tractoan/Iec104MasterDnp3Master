@@ -21,6 +21,9 @@ AppConfiguration AppConfiguration::fromFile(const std::string &fileName) {
     appConfiguration.dnp3ClientSerialPort = fileConfiguration.property("dnp3ClientSerialPort", std::string(""));
     appConfiguration.dnp3ClientSerialPortBaudrate = fileConfiguration.property("dnp3ClientSerialPortBaudrate", 0U);
     std::string dnp3ConnectionType = toUpper(fileConfiguration.property("dnp3ConnectionType", std::string("")));
+    appConfiguration.commonAsdu = fileConfiguration.property("commonAsdu", -1U);
+    appConfiguration.commonAsduValid = (appConfiguration.commonAsdu >= 0);
+    appConfiguration.incrementIOA = fileConfiguration.property("incrementIOA", false);
     if (dnp3ConnectionType == std::string("TCP")){
         appConfiguration.dnp3ConnectionType = DNP3_CONNECTION_TCP;
     }
@@ -48,7 +51,12 @@ AppConfiguration AppConfiguration::fromFile(const std::string &fileName) {
     for (int i=0 ; i<numMessage ; i++){
         std::string messageId = std::string("message") + std::to_string(i+1);
         MessageConfig config;
-        config.iec104Asdu = fileConfiguration.property(messageId+std::string(".iec104Asdu"), 0U);
+        if (appConfiguration.commonAsduValid == true) {
+            config.iec104Asdu = appConfiguration.commonAsdu;
+        }
+        else {
+            config.iec104Asdu = fileConfiguration.property(messageId+std::string(".iec104Asdu"), 0U);
+        }
         std::string messageType = toUpper(fileConfiguration.property(messageId+std::string(".messageType"), std::string("")));
         if (messageType == std::string("BINARY_INPUT")){
             config.messageType = BINARY_INPUT;
@@ -71,7 +79,12 @@ AppConfiguration AppConfiguration::fromFile(const std::string &fileName) {
             return appConfiguration;
         }
         config.dnp3Point = fileConfiguration.property(messageId+std::string(".dnp3Point"), static_cast<int>(0));
-        config.iec104Ioa = fileConfiguration.property(messageId+std::string(".iec104Ioa"), static_cast<int>(0));
+        if (appConfiguration.incrementIOA) {
+            config.iec104Ioa = i;
+        }
+        else {
+            config.iec104Ioa = fileConfiguration.property(messageId+std::string(".iec104Ioa"), static_cast<int>(0));
+        }
         for (int j=0 ; j<appConfiguration.configData.size() ; j++){
             if ((appConfiguration.configData[j].messageType == config.messageType) 
             && (appConfiguration.configData[j].iec104Asdu == config.iec104Asdu) 

@@ -27,6 +27,9 @@ public:
     DNP3ConnectionType dnp3ConnectionType;
     std::string dnp3ClientSerialPort;
     int dnp3ClientSerialPortBaudrate;
+    bool commonAsduValid;
+    int commonAsdu;
+    bool incrementIOA;
     std::vector<MessageConfig> configData;
     static AppConfiguration fromFile(const std::string &fileName);
     bool getConfigValid();
